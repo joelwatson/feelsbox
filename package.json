@@ -1,0 +1,32 @@
+{
+  "name": "feelsbox",
+  "version": "0.0.1",
+  "description": "A magical box of feelings...and LEDs! :)",
+  "main": "index.js",
+  "scripts": {
+    "test": "test",
+    "start": "babel-node index.js --presets env"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/existdissolve/feelsbox"
+  },
+  "author": "Joel Watson",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/existdissolve/feelsbox/issues"
+  },
+  "dependencies": {
+    "express": "^4.16.2",
+    "onoff": "1.1.8",
+    "request": "^2.83.0",
+    "rpi-ws281x-native": "^0.8.2",
+    "socket.io-client": "^2.0.4"
+  },
+  "devDependencies": {
+    "babel-cli": "^6.26.0",
+    "babel-preset-env": "^1.6.1",
+    "babel-preset-es2015": "^6.24.1",
+    "babel-preset-stage-0": "^6.24.1"
+  }
+}
