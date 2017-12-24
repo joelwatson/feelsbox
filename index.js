@@ -125,13 +125,15 @@ const clearMatrix = () => {
     if (state) {
         Matrix.reset();
         delete Matrix.state;
-    }    
+    }
+
+     clearInterval(weatherReqFn);    
 };
 
 const setViewState = () => {
     // we always need to clear the matrix between states
     clearMatrix();
-    
+
     switch(viewState) {
         case 1: // emoji
             viewState = 2;
@@ -168,6 +170,7 @@ const exitHandler = () => {
     socket.close();
     clearMatrix();
     clearInterval(weatherReqFn);
+    process.exit();
 }
 
 socket.on('emote', feeling => {
@@ -183,9 +186,6 @@ socket.on('stop', () => {
 socket.on('weather', () => {
     weatherReqFn = setInterval(getWeather, 600000);
 });
-
-//do something when app is closing
-process.on('exit', exitHandler);
 
 //catches ctrl+c event
 process.on('SIGINT', exitHandler);
