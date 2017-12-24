@@ -17,8 +17,7 @@
     "url": "https://github.com/existdissolve/feelsbox/issues"
   },
   "dependencies": {
-    "express": "^4.16.2",
-    "onoff": "1.1.8",
+    "onoff": "^1.1.8",
     "request": "^2.83.0",
     "rpi-ws281x-native": "^0.8.2",
     "socket.io-client": "^2.0.4"
