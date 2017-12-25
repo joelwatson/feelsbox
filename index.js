@@ -6,6 +6,7 @@ import {Gpio} from 'onoff';
 import {apiKey, latitude, longitude} from './config';
 import {love} from './pixels/default-emoji';
 import numbers from './pixels/numbers';
+import {icons, iconmap} from './pixels/weather';
 
 const ledCount = 64;
 const socket = io('https://feelsbox.herokuapp.com', {forceNew: true});
@@ -62,30 +63,36 @@ const getWeather = () => {
     });
 };
 
-const renderWeather = weather => {
-    const {feelslike, icon} = weather;
-    const temperature = Math.min(Math.abs(feelslike), 99).toString().split('');
+const renderWeatherDisplay = weather => {
     const pixelData = new Uint32Array(ledCount);
+    const {icon, feelslike} = weather;
+    const temperature = Math.min(Math.abs(feelslike), 99).toString().split('');
     let borderColor;
     
-    if (temperature.length === 1) {
-        // normalize entry to we always have 2 places
-        temperature.unshift('_');
-    }
-
-    // initialize Matrix if not already initialized
-    if (Matrix.state !== 'weather') {
-        Matrix.init(ledCount, {brightness: 20});
-        Matrix.state = 'weather';
+    if (feelslike <= 32) {
+        // dark blue
+        borderColor = '0x0000cc';
+    } else if (feelslike > 32 && feelslike < 65) {
+        // light blue
+        borderColor = '0xadd8e6';
+    } else if (feelslike >= 65 && feelslike < 85) {
+        // green
+        borderColor = '0x008000';
+    } else {
+        // orange
+        borderColor = '0xff4500';
     }
 
     temperature.forEach((entry, index) => {
-        if (entry === '_') {
-            return;
+        let offset = 0;
+        
+        if (index === 0 && temperature.length ===1) {
+            offset = 2;
+        } else {
+            offset = index === 0 ? 0 : 4
         }
 
         const digit = numbers[entry];
-        const offset = index === 0 ? 0 : 3;
         let start = 9 + offset;
         let current = start;
 
@@ -103,7 +110,55 @@ const renderWeather = weather => {
         }
     });
 
+    // create temperature border
+    let border= [
+        0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
+        16, 24, 32, 40, 48, 
+        //23, 31, 39, 47, 55, 
+        56, 57, 58, 59, 60, 61, 62, 63 
+    ];
+
+    if (temperature.length === 1) {
+        border = border.concat([23, 31, 39, 47, 55]);
+    }
+    
+    
+    border.forEach(index => {
+        pixelData[invertValue(index)] = borderColor;
+    });
+
     Matrix.render(pixelData);
+
+    setTimeout(() => {
+        renderWeatherIcon(weather);
+    }, 10000);
+}
+
+const renderWeatherIcon = weather => {
+    const {icon, feelslike} = weather;
+    const pixelData = new Uint32Array(ledCount);
+    const iconPixels = icons[iconmap[icon]] || icons['sun'];
+
+    iconPixels.forEach(function (item) {
+        const {i, c} = item;
+        pixelData[invertValue(i-1)] = `0x${c}`;
+    });
+
+    Matrix.render(pixelData);
+
+    setTimeout(() => {
+        renderWeatherDisplay(weather);
+    }, 10000);
+};
+
+const renderWeather = weather => {
+    // initialize Matrix if not already initialized
+    if (Matrix.state !== 'weather') {
+        Matrix.init(ledCount, {brightness: 20});
+        Matrix.state = 'weather';
+    }
+
+    renderWeatherDisplay(weather);
 };
 
 const showFeeling = feeling => {
