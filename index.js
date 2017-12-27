@@ -2,6 +2,7 @@ import Matrix from 'rpi-ws281x-native';
 import io from 'socket.io-client';
 import request from 'request';
 import {Gpio} from 'onoff';
+import shelljs from 'shelljs';
 
 import {apiKey, latitude, longitude} from './config';
 import {love} from './pixels/default-emoji';
@@ -14,10 +15,29 @@ const weatherEndPoint = 'https://api.darksky.net/forecast';
 const toggle = new Gpio(4, 'in', 'both');
 let viewState = 0;
 let currentWeather = {};
-let weatherReqFn;
+var weatherReqFn;
+var weatherTimerFn;
+var weatherIconTimerFn;
+var downTime = 0;
 
 toggle.watch((err, value) => {
+    if (value === 0) {
+        downTime = new Date().getTime();
+    } else if (value === 1) {
+        // get timer diff
+        const diff = new Date().getTime() - downTime;
+        // if diff is greater than 5 seconds, shutdown
+        if (downTime !== 0 && diff >= 5000) {
+            console.log(diff, 'restart');
+            restart();
+            return;
+        }
+        // clear downtime
+        downTime = 0;
+    }
+
     if (!err && value) {
+        console.log('button up', viewState);
         setViewState();
     }
 });
@@ -129,7 +149,7 @@ const renderWeatherDisplay = weather => {
 
     Matrix.render(pixelData);
 
-    setTimeout(() => {
+    weatherIconTimerFn = setTimeout(() => {
         renderWeatherIcon(weather);
     }, 10000);
 }
@@ -146,7 +166,7 @@ const renderWeatherIcon = weather => {
 
     Matrix.render(pixelData);
 
-    setTimeout(() => {
+    weatherTimerFn = setTimeout(() => {
         renderWeatherDisplay(weather);
     }, 10000);
 };
@@ -182,7 +202,9 @@ const clearMatrix = () => {
         delete Matrix.state;
     }
 
-     clearInterval(weatherReqFn);    
+     clearInterval(weatherReqFn);
+     clearTimeout(weatherTimerFn);
+     clearTimeout(weatherIconTimerFn);    
 };
 
 const setViewState = () => {
@@ -193,15 +215,15 @@ const setViewState = () => {
         case 1: // emoji
             viewState = 2;
             getWeather();
-            //weatherReqFn = setInterval(getWeather, 600000);
-	        break;
-	    case 2: // weather
+            weatherReqFn = setInterval(getWeather, 600000);
+	    break;
+        case 2: // weather
             viewState = 0;
-	        break;
-	    default: // screen off
+	    break;
+	default: // screen off
             viewState = 1;
             showFeeling(love);
-	        break;
+	    break;
     }
 };
 
@@ -221,6 +243,12 @@ const invertValue = value => {
     return fixedValue;
 };
 
+const restart = () => {
+    clearMatrix();
+    console.log('restarting');
+    shelljs.exec('reboot -h now');
+};
+
 const exitHandler = () => {
     socket.close();
     clearMatrix();
@@ -229,6 +257,7 @@ const exitHandler = () => {
 }
 
 socket.on('emote', feeling => {
+    clearMatrix();
     viewState = 1;
     showFeeling(feeling);
 });
@@ -242,14 +271,14 @@ socket.on('weather', () => {
     weatherReqFn = setInterval(getWeather, 600000);
 });
 
-//catches ctrl+c event
+// catches ctrl+c event
 process.on('SIGINT', exitHandler);
 
 // catches "kill pid" (for example: nodemon restart)
 process.on('SIGUSR1', exitHandler);
 process.on('SIGUSR2', exitHandler);
 
-//catches uncaught exceptions
+// catches uncaught exceptions
 process.on('uncaughtException', exitHandler);
 
-
+setViewState();

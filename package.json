@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "test": "test",
-    "start": "babel-node index.js --presets env"
+    "start": "babel-node index.js --presets env",
+    "build": "babel . -d build"
   },
   "repository": {
     "type": "git",
@@ -17,9 +18,11 @@
     "url": "https://github.com/existdissolve/feelsbox/issues"
   },
   "dependencies": {
+    "node-gyp": "^3.6.2",
     "onoff": "^1.1.8",
     "request": "^2.83.0",
     "rpi-ws281x-native": "^0.8.2",
+    "shelljs": "^0.7.8",
     "socket.io-client": "^2.0.4"
   },
   "devDependencies": {
