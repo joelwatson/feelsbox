@@ -19,6 +19,7 @@ var weatherReqFn;
 var weatherTimerFn;
 var weatherIconTimerFn;
 var downTime = 0;
+var clickBuffer;
 
 toggle.watch((err, value) => {
     if (value === 0) {
@@ -32,13 +33,18 @@ toggle.watch((err, value) => {
             restart();
             return;
         }
-        // clear downtime
-        downTime = 0;
     }
 
     if (!err && value) {
-        console.log('button up', viewState);
-        setViewState();
+        // if any clicks are already in progress, clear them 
+        clearTimeout(clickBuffer);
+        clickBuffer = setTimeout(() => {
+            console.log('button up', viewState);
+	    setViewState();
+            clickBuffer = null;
+            // clear downtime
+            downTime = 0;
+	}, 300);
     }
 });
 
