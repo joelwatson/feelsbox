@@ -245,27 +245,6 @@ const showFeeling = async data => {
 
 	await loop(frames);
     }
-
-    /*
-    Matrix.init(ledCount, {
-        brightness: 30,
-	frequency: 900000
-    });
-    Matrix.state = 'feeling';
-    
-    const pixelData = new Uint32Array(ledCount);
-    let y = -1;
-
-    feeling.forEach(function (item) {
-        const {i, c} = item;
-        
-	pixelData[invertValue(i-1)] = `0x${c}`;
-    });
-
-    console.log('a feeling happened');
-
-    Matrix.render(pixelData);
-    */
 };
 
 const renderFrame = frame => {
@@ -283,7 +262,7 @@ const renderFrame = frame => {
 	    ({color} = pixel);
 	}
 
-	pixelData[idx] = `0x${color}`;
+	pixelData[invertValue(idx)] = `0x${color}`;
     });
 
     Matrix.render(pixelData);
@@ -358,7 +337,10 @@ socket.on('emote', data => {
     showFeeling(data);
 });
 
+socket.on('restart', restart);
+
 socket.on('stop', () => {
+    console.log('turning off display');
     Matrix.reset();
     clearInterval(weatherReqFn);
 });
