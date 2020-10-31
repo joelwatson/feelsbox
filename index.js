@@ -4,14 +4,13 @@ import request from 'request';
 import {Gpio} from 'onoff';
 import shelljs from 'shelljs';
 
-import {apiKey, latitude, longitude} from './config';
+import {apiKey, latitude, longitude, room} from './config';
 import {love} from './pixels/default-emoji';
 import numbers from './pixels/numbers';
 import {icons, iconmap} from './pixels/weather';
 
 const ledCount = 64;
-//const socket = io('https://feelsbox-server.herokuapp.com', {forceNew: true});
-const socket = io('https://67ce24e59a5d.ngrok.io', {forceNew: true});
+const socket = io('https://feelsbox-server-v2.herokuapp.com', {forceNew: true});
 const weatherEndPoint = 'https://api.darksky.net/forecast';
 const toggle = new Gpio(4, 'in', 'both');
 const timers = [];
@@ -23,6 +22,8 @@ var weatherTimerFn;
 var weatherIconTimerFn;
 var downTime = 0;
 var clickBuffer;
+
+socket.emit('joinroom', room);
 
 toggle.watch((err, value) => {
     if (value === 0) {
@@ -276,14 +277,13 @@ const renderFrame = frame => {
 
     Array.from(Array(64).keys()).forEach((row, idx) => {
 	const pixel = pixels.find(pix => pix.position === idx);
-	const boardPosition = invertValue(idx - 1);
 	let color = '000';
 
 	if (pixel) {
 	    ({color} = pixel);
 	}
 
-	pixelData[boardPosition] = `0x${color}`;
+	pixelData[idx] = `0x${color}`;
     });
 
     Matrix.render(pixelData);
@@ -352,6 +352,7 @@ const exitHandler = () => {
 }
 
 socket.on('emote', data => {
+    console.log('an emoji is happened');
     clearMatrix();
     viewState = 1;
     showFeeling(data);
