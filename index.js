@@ -25,6 +25,10 @@ var clickBuffer;
 
 socket.emit('joinroom', room);
 
+setInterval(() => {
+    socket.emit('joinroom', room);
+}, 60000)
+
 toggle.watch((err, value) => {
     if (value === 0) {
         downTime = new Date().getTime();
@@ -44,7 +48,7 @@ toggle.watch((err, value) => {
         clearTimeout(clickBuffer);
         clickBuffer = setTimeout(() => {
             console.log('button up', viewState);
-	    setViewState();
+            setViewState();
             clickBuffer = null;
             // clear downtime
             downTime = 0;
@@ -203,8 +207,10 @@ const sleep = duration => {
 
 const clearTimers = () => {
     timers.forEach(timer => {
-	clearTimeout(timer);
+        clearTimeout(timer);
     });
+
+    timers.length = 0;
 };
 
 const showFeeling = async data => {
@@ -214,36 +220,36 @@ const showFeeling = async data => {
     clearTimers();
 
     if (frames.length === 1) {
-	const [frame] = frames;
+        const [frame] = frames;
 
         renderFrame(frame);
     } else {
         const loop = async(curFrames, skip) => {
-	    let idx = -1;
+            let idx = -1;
 
             for (const frame of curFrames) {
-		idx++;
+                idx++;
 
-		if (idx === 0 && skip) {
-		    continue;
-		}
+                if (idx === 0 && skip) {
+                    continue;
+                }
 
-		const {duration: frameDuration} = frame;
-		const duration = frameDuration || defaultDuration;
+                const {duration: frameDuration} = frame;
+                const duration = frameDuration || defaultDuration;
 
-		renderFrame(frame);
+                renderFrame(frame);
 
-		await sleep(duration);
-	    }
+                await sleep(duration);
+            }
 
-	    if (repeat) {
-		const frames = reverse ? curFrames.reverse() : curFrames;
+            if (repeat) {
+                const frames = reverse ? curFrames.reverse() : curFrames;
 
-		await loop(frames, reverse);
-	    }
+                await loop(frames, reverse);
+            }
         };
 
-	await loop(frames);
+        await loop(frames);
     }
 };
 
@@ -255,14 +261,14 @@ const renderFrame = frame => {
     Matrix.state = 'feeling';
 
     Array.from(Array(64).keys()).forEach((row, idx) => {
-	const pixel = pixels.find(pix => pix.position === idx);
-	let color = '000';
+        const pixel = pixels.find(pix => pix.position === idx);
+        let color = '000';
 
-	if (pixel) {
-	    ({color} = pixel);
-	}
+        if (pixel) {
+            ({color} = pixel);
+        }
 
-	pixelData[invertValue(idx)] = `0x${color}`;
+        pixelData[invertValue(idx)] = `0x${color}`;
     });
 
     Matrix.render(pixelData);
@@ -290,14 +296,17 @@ const setViewState = () => {
             viewState = 2;
             getWeather();
             weatherReqFn = setInterval(getWeather, 600000);
-	    break;
+
+            break;
         case 2: // weather
             viewState = 0;
-	    break;
+
+            break;
 	default: // screen off
             viewState = 1;
             showFeeling({feel: love});
-	    break;
+
+            break;
     }
 };
 
