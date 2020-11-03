@@ -257,7 +257,7 @@ const renderFrame = frame => {
     const {brightness = 100, pixels = []} = frame;
     const pixelData = new Uint32Array(ledCount);
 
-    Matrix.init(ledCount, {brightness});
+    Matrix.init(ledCount, {dmaNum: 10, brightness});
     Matrix.state = 'feeling';
 
     Array.from(Array(64).keys()).forEach((row, idx) => {
