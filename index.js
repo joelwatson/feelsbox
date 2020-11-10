@@ -4,11 +4,12 @@ import request from 'request';
 import {Gpio} from 'onoff';
 import shelljs from 'shelljs';
 
-import {apiKey, latitude, longitude, room} from './config';
+import config from './config';
 import {love} from './pixels/default-emoji';
 import numbers from './pixels/numbers';
 import {icons, iconmap} from './pixels/weather';
 
+const {apiKey, latitude, longitude, room} = config;
 const ledCount = 64;
 const socket = io('https://feelsbox-server-v2.herokuapp.com', {forceNew: true});
 const weatherEndPoint = 'https://api.darksky.net/forecast';
@@ -16,12 +17,11 @@ const toggle = new Gpio(4, 'in', 'both');
 const timers = [];
 
 let viewState = 0;
-let currentWeather = {};
-var weatherReqFn;
-var weatherTimerFn;
-var weatherIconTimerFn;
 var downTime = 0;
 var clickBuffer;
+
+// configure the ws281x strip
+Matrix.init(ledCount);
 
 socket.emit('joinroom', room);
 
@@ -29,7 +29,7 @@ setInterval(() => {
     socket.emit('joinroom', room);
 }, 60000)
 
-toggle.watch((err, value) => {
+/*toggle.watch((err, value) => {
     if (value === 0) {
         downTime = new Date().getTime();
     } else if (value === 1) {
@@ -54,148 +54,7 @@ toggle.watch((err, value) => {
             downTime = 0;
 	}, 300);
     }
-});
-
-const getWeather = () => {
-    const opts = {
-        url: `https://api.darksky.net/forecast/${apiKey}/${latitude}, ${longitude}?exclude=minutely,hourly,daily,alerts,flags`,
-        method: 'GET',
-        json: true
-    };
-
-    request(opts, (err, response, data) => {
-        console.log(err)
-        let low, high;
-        const {
-            currently: {
-                icon,
-                temperature: current,
-                apparentTemperature: feelslike
-            } = {},
-            daily: {
-                data: weather = []
-            } = {}
-        } = data;
-
-        weather.forEach(item => {
-            const {temperatureLow: min, temperatureHigh: max} = item;
-
-            if (low === undefined || min < low) {
-                low = min;
-            }
-
-            if (high === undefined || max > high) {
-                high = max;
-            }
-        });
-
-        renderWeather({
-            icon,
-            current,
-            feelslike: parseInt(feelslike),
-            //low,
-            //high
-        });
-    });
-};
-
-const renderWeatherDisplay = weather => {
-    const pixelData = new Uint32Array(ledCount);
-    const {icon, feelslike} = weather;
-    const temperature = Math.min(Math.abs(feelslike), 99).toString().split('');
-    let borderColor;
-
-    if (feelslike <= 32) {
-        // dark blue
-        borderColor = '0x0000cc';
-    } else if (feelslike > 32 && feelslike < 65) {
-        // light blue
-        borderColor = '0xadd8e6';
-    } else if (feelslike >= 65 && feelslike < 85) {
-        // green
-        borderColor = '0x008000';
-    } else {
-        // orange
-        borderColor = '0xff4500';
-    }
-
-    temperature.forEach((entry, index) => {
-        let offset = 0;
-
-        if (index === 0 && temperature.length ===1) {
-            offset = 2;
-        } else {
-            offset = index === 0 ? 0 : 4
-        }
-
-        const digit = numbers[entry];
-        let start = 9 + offset;
-        let current = start;
-
-        // loop over rows
-        for (let i=0; i<5; i++) {
-            start = start + 8;
-            current = start - 1;
-
-            digit[i].forEach((row, idx) => {
-                current++;
-                if (row) {
-                    pixelData[invertValue(current)] = '0xffffff';
-                }
-            });
-        }
-    });
-
-    // create temperature border
-    let border= [
-        0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
-        16, 24, 32, 40, 48,
-        //23, 31, 39, 47, 55,
-        56, 57, 58, 59, 60, 61, 62, 63
-    ];
-
-    if (temperature.length === 1) {
-        border = border.concat([23, 31, 39, 47, 55]);
-    }
-
-
-    border.forEach(index => {
-        pixelData[invertValue(index)] = borderColor;
-    });
-
-    Matrix.render(pixelData);
-
-    weatherIconTimerFn = setTimeout(() => {
-        renderWeatherIcon(weather);
-    }, 10000);
-}
-
-const renderWeatherIcon = weather => {
-    const {icon, feelslike} = weather;
-    const pixelData = new Uint32Array(ledCount);
-    const iconPixels = icons[iconmap[icon]] || icons['sun'];
-
-    iconPixels.forEach(function (item) {
-        const {i, c} = item;
-        pixelData[invertValue(i-1)] = `0x${c}`;
-    });
-
-    Matrix.render(pixelData);
-
-    weatherTimerFn = setTimeout(() => {
-        renderWeatherDisplay(weather);
-    }, 10000);
-};
-
-const renderWeather = weather => {
-    // initialize Matrix if not already initialized
-    if (Matrix.state !== 'weather') {
-        Matrix.init(ledCount, {brightness: 20});
-        Matrix.state = 'weather';
-    }
-
-    renderWeatherDisplay(weather);
-};
+});*/
 
 const sleep = duration => {
     return new Promise(resolve => {
@@ -257,9 +116,6 @@ const renderFrame = frame => {
     const {brightness = 100, pixels = []} = frame;
     const pixelData = new Uint32Array(ledCount);
 
-    Matrix.init(ledCount, {dmaNum: 10, brightness});
-    Matrix.state = 'feeling';
-
     Array.from(Array(64).keys()).forEach((row, idx) => {
         const pixel = pixels.find(pix => pix.position === idx);
         let color = '000';
@@ -275,27 +131,13 @@ const renderFrame = frame => {
 };
 
 const clearMatrix = () => {
-    const {state = null} = Matrix;
-
-    if (state) {
-        Matrix.reset();
-        delete Matrix.state;
-    }
-
-    clearInterval(weatherReqFn);
-    clearTimeout(weatherTimerFn);
-    clearTimeout(weatherIconTimerFn);
+    // noop; need to remove
 };
 
-const setViewState = () => {
-    // we always need to clear the matrix between states
-    clearMatrix();
-
+const setViewState = initMatrix => {
     switch(viewState) {
         case 1: // emoji
             viewState = 2;
-            getWeather();
-            weatherReqFn = setInterval(getWeather, 600000);
 
             break;
         case 2: // weather
@@ -334,30 +176,30 @@ const restart = () => {
 
 const exitHandler = () => {
     socket.close();
+
     clearMatrix();
-    clearInterval(weatherReqFn);
-    process.exit();
+
+    process.nextTick(() => {
+        process.exit();
+    });
 }
 
 socket.on('emote', data => {
-    console.log('an emoji is happened');
     clearMatrix();
+
     viewState = 1;
+
     showFeeling(data);
 });
 
 socket.on('restart', restart);
 
 socket.on('stop', () => {
-    console.log('turning off display');
     Matrix.reset();
-    clearInterval(weatherReqFn);
 });
 
 socket.on('weather', () => {
     viewState = 1;
-    getWeather();
-    weatherReqFn = setInterval(getWeather, 600000);
 });
 
 // catches ctrl+c event
@@ -370,4 +212,4 @@ process.on('SIGUSR2', exitHandler);
 // catches uncaught exceptions
 process.on('uncaughtException', exitHandler);
 
-setViewState();
+setTimeout(setViewState, 500);
