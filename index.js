@@ -16,6 +16,7 @@ const weatherEndPoint = 'https://api.darksky.net/forecast';
 const toggle = new Gpio(4, 'in', 'both');
 const timers = [];
 
+let isInitialized = false;
 let viewState = 0;
 var downTime = 0;
 var clickBuffer;
@@ -29,7 +30,7 @@ setInterval(() => {
     socket.emit('joinroom', room);
 }, 60000)
 
-/*toggle.watch((err, value) => {
+toggle.watch((err, value) => {
     if (value === 0) {
         downTime = new Date().getTime();
     } else if (value === 1) {
@@ -54,7 +55,7 @@ setInterval(() => {
             downTime = 0;
 	}, 300);
     }
-});*/
+});
 
 const sleep = duration => {
     return new Promise(resolve => {
@@ -76,6 +77,12 @@ const showFeeling = async data => {
     const {feel} = data;
     const {duration: defaultDuration = 1000, frames = [], repeat = false, reverse = false} = feel;
 
+    if (!isInitialized) {
+        isInitialized = initialize();
+
+        await sleep(10);
+    }
+
     clearTimers();
 
     if (frames.length === 1) {
@@ -89,7 +96,7 @@ const showFeeling = async data => {
             for (const frame of curFrames) {
                 idx++;
 
-                if (idx === 0 && skip) {
+                if ((idx === 0 && skip) || !isInitialized) {
                     continue;
                 }
 
@@ -101,7 +108,7 @@ const showFeeling = async data => {
                 await sleep(duration);
             }
 
-            if (repeat) {
+            if (repeat && isInitialized) {
                 const frames = reverse ? curFrames.reverse() : curFrames;
 
                 await loop(frames, reverse);
@@ -127,34 +134,31 @@ const renderFrame = frame => {
         pixelData[invertValue(idx)] = `0x${color}`;
     });
 
-    Matrix.render(pixelData);
+    if (isInitialized) {
+        Matrix.render(pixelData);
+    }
 };
 
-const clearMatrix = () => {
-    // noop; need to remove
+const initialize = () => {
+    Matrix.init(ledCount);
+
+    isInitialized = true;
+
+    return isInitialized;
 };
 
-const setViewState = initMatrix => {
-    switch(viewState) {
-        case 1: // emoji
-            viewState = 2;
+const teardown = () => {
+    if (isInitialized) {
+         Matrix.reset();
 
-            break;
-        case 2: // weather
-            viewState = 0;
-
-            break;
-	default: // screen off
-            viewState = 1;
-            showFeeling({feel: love});
-
-            break;
+         isInitialized = false;
     }
 };
 
 const invertValue = value => {
     const row = parseInt(value / 8);
     const needsInversion = !(row % 2);
+
     let fixedValue = value;
 
     if (needsInversion) {
@@ -169,15 +173,17 @@ const invertValue = value => {
 };
 
 const restart = () => {
-    clearMatrix();
+    teardown();
+
     console.log('restarting');
+
     shelljs.exec('reboot -h now');
 };
 
 const exitHandler = () => {
     socket.close();
 
-    clearMatrix();
+    teardown();
 
     process.nextTick(() => {
         process.exit();
@@ -185,21 +191,17 @@ const exitHandler = () => {
 }
 
 socket.on('emote', data => {
-    clearMatrix();
-
-    viewState = 1;
-
     showFeeling(data);
 });
 
 socket.on('restart', restart);
 
 socket.on('stop', () => {
-    Matrix.reset();
+    teardown();
 });
 
 socket.on('weather', () => {
-    viewState = 1;
+    // TODO: fix this
 });
 
 // catches ctrl+c event
@@ -212,4 +214,5 @@ process.on('SIGUSR2', exitHandler);
 // catches uncaught exceptions
 process.on('uncaughtException', exitHandler);
 
-setTimeout(setViewState, 500);
+// show initial emoji on startup
+showFeeling({feel: love});
