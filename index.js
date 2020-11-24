@@ -9,7 +9,7 @@ import {love} from './pixels/default-emoji';
 import numbers from './pixels/numbers';
 import {icons, iconmap} from './pixels/weather';
 
-const {apiKey, latitude, longitude, room} = config;
+const {apiKey, latitude, longitude, room, wrap} = config;
 const ledCount = 64;
 const socket = io('https://feelsbox-server-v2.herokuapp.com', {forceNew: true});
 const weatherEndPoint = 'https://api.darksky.net/forecast';
@@ -131,7 +131,7 @@ const renderFrame = frame => {
             ({color} = pixel);
         }
 
-        pixelData[invertValue(idx)] = `0x${color}`;
+        pixelData[wrap ? idx : invertValue(idx)] = `0x${color}`;
     });
 
     if (isInitialized) {
