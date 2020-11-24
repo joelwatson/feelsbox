@@ -180,6 +180,12 @@ const restart = () => {
     shelljs.exec('reboot -h now');
 };
 
+const setBrightness = brightness => {
+    const convertedBrightness = Math.round(brightness / 100 * 255);
+ 
+    Matrix.setBrightness(convertedBrightness);
+};
+
 const exitHandler = () => {
     socket.close();
 
@@ -195,6 +201,8 @@ socket.on('emote', data => {
 });
 
 socket.on('restart', restart);
+
+socket.on('brightness', setBrightness);
 
 socket.on('stop', () => {
     teardown();
