@@ -3,6 +3,7 @@ import io from 'socket.io-client';
 import request from 'request';
 import {Gpio} from 'onoff';
 import shelljs from 'shelljs';
+import os from 'os';
 
 import config from './config';
 import {love} from './pixels/default-emoji';
@@ -15,6 +16,10 @@ const socket = io('https://feelsbox-server-v2.herokuapp.com', {forceNew: true});
 const weatherEndPoint = 'https://api.darksky.net/forecast';
 const toggle = new Gpio(4, 'in', 'both');
 const timers = [];
+const interfaces = os.networkInterfaces();
+const {wlan0: connections} = interfaces;
+const [wifi] = connections || {};
+const {address: localIP} = wifi;
 
 let isInitialized = false;
 let viewState = 0;
@@ -24,11 +29,11 @@ var clickBuffer;
 // configure the ws281x strip
 Matrix.init(ledCount);
 
-socket.emit('joinroom', room);
+socket.emit('joinroom', room, localIP);
 
 setInterval(() => {
-    socket.emit('joinroom', room);
-}, 60000)
+    socket.emit('joinroom', room, localIP);
+}, 60000);
 
 toggle.watch((err, value) => {
     if (value === 0) {
