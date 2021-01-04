@@ -7,6 +7,7 @@ import os from 'os';
 
 import config from './config';
 import {love} from './pixels/default-emoji';
+import {feel as alphabetFeel, letterMap} from './pixels/alphabet/standard';
 import numbers from './pixels/numbers';
 import {icons, iconmap} from './pixels/weather';
 
@@ -76,6 +77,76 @@ const clearTimers = () => {
     });
 
     timers.length = 0;
+};
+
+const prepareTickerTape = (words, opts = {}) => {
+    const {duration: defaultDuration = 30, frames} = alphabetFeel;
+    const {color = '8d8d8d', duration: definedDuration} = opts;
+    const duration = definedDuration || defaultDuration;
+    const letters = words.split('').map(letter => {
+        const idx = letterMap.findIndex(char => char === letter);
+
+        if (idx !== -1) {
+            return frames[idx];
+        }
+    });
+    const frameBuffer = 63;
+    const allPixels = [];
+    const frameCount = (letters.length * 8) + 8;
+    const letterFrames = [];
+
+    letters.forEach((frame, idx) => {
+        const frameIdx = idx + 1;
+        const start = frameIdx * frameBuffer;
+        const {pixels = []} = frame;
+
+        pixels.forEach(pixel => {
+            const {color, position} = pixel;
+
+            allPixels.push({ 
+                frameIndex: frameIdx,
+                position: position + start,
+                originalPosition: position,
+                row: Math.floor(position / 8)
+            });
+        });
+    });
+
+    for (let x = 0; x < frameCount; x++) {
+        const pixels = [];
+
+        for (const pixel of allPixels) {
+            const {frameIndex, originalPosition, position: oldPosition, row} = pixel;
+
+            let nextPosition = oldPosition - 1;
+
+            const rowStart = (row * 8) + (frameIndex * frameBuffer);
+
+            // if next position isn't in the same row, slide to next frame
+            if (nextPosition < rowStart) {
+                pixel.frameIndex = frameIndex - 1; 
+
+                const postFrameIndex = (pixel.frameIndex) * frameBuffer;
+                const diminisher = Math.abs(postFrameIndex);
+
+                nextPosition = ((row + 1) * 8) + postFrameIndex - 1;
+            }
+
+            pixel.position = nextPosition;
+            // save into individual frames
+            pixels.push({color, position: nextPosition});
+        }
+
+        letterFrames.push({pixels});
+    }
+
+    return {
+        feel: {
+            duration,
+            frames: letterFrames,
+            repeat: true
+        }
+    };
 };
 
 const showFeeling = async data => {
@@ -203,6 +274,13 @@ const exitHandler = () => {
 
 socket.on('emote', data => {
     showFeeling(data);
+});
+
+socket.on('words', data => {
+    const {duration = 30, words} = data;
+    const feeling = prepareTickerTape(words, {duration});
+
+    showFeeling(feeling);
 });
 
 socket.on('restart', restart);
