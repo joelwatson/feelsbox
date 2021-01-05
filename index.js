@@ -4,6 +4,7 @@ import request from 'request';
 import {Gpio} from 'onoff';
 import shelljs from 'shelljs';
 import os from 'os';
+import cp from 'child_process';
 
 import config from './config';
 import {love} from './pixels/default-emoji';
@@ -21,6 +22,7 @@ const interfaces = os.networkInterfaces();
 const {wlan0: connections} = interfaces;
 const [wifi] = connections || {};
 const {address: localIP} = wifi;
+const version = 1.0;
 
 let isInitialized = false;
 let viewState = 0;
@@ -30,10 +32,10 @@ var clickBuffer;
 // configure the ws281x strip
 Matrix.init(ledCount);
 
-socket.emit('joinroom', room, localIP);
+socket.emit('joinroom', room, localIP, version);
 
 setInterval(() => {
-    socket.emit('joinroom', room, localIP);
+    socket.emit('joinroom', room, localIP, version);
 }, 60000);
 
 toggle.watch((err, value) => {
@@ -281,6 +283,12 @@ socket.on('words', data => {
     const feeling = prepareTickerTape(words, {duration});
 
     showFeeling(feeling);
+});
+
+socket.on('update', () => {
+    cp.execSync('cd /usr/local/code/feelsbox && git pull origin v2 && npm install');
+
+    restart();
 });
 
 socket.on('restart', restart);
