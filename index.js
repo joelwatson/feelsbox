@@ -22,7 +22,7 @@ const interfaces = os.networkInterfaces();
 const {wlan0: connections} = interfaces;
 const [wifi] = connections || {};
 const {address: localIP} = wifi;
-const version = 1.0;
+const version = 1.1;
 
 let isInitialized = false;
 let viewState = 0;
